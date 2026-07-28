@@ -68,14 +68,32 @@ public class WarehouseRepository implements WarehouseStore, PanacheRepository<Db
     getEntityManager().clear();
   }
 
+  /**
+   * Deletes a warehouse by its Business Unit Code.
+   * Throws IllegalArgumentException if the warehouse does not exist.
+   **/
   @Override
   public void remove(Warehouse warehouse) {
 
-    DbWarehouse dbWarehouse = find("businessUnitCode", warehouse.businessUnitCode).firstResult();
+    LOG.infof("Deleting warehouse with BusinessUnitCode=%s", warehouse.businessUnitCode);
 
-    if (dbWarehouse != null) {
-      delete(dbWarehouse);
+    DbWarehouse dbWarehouse =
+            find("businessUnitCode", warehouse.businessUnitCode)
+                    .firstResult();
+
+    if (dbWarehouse == null) {
+
+      LOG.warnf("Warehouse %s not found for deletion.",
+              warehouse.businessUnitCode);
+
+      throw new IllegalArgumentException(
+              "Warehouse not found: " + warehouse.businessUnitCode);
     }
+
+    delete(dbWarehouse);
+
+    LOG.infof("Warehouse %s deleted successfully.",
+            warehouse.businessUnitCode);
   }
 
   @Override
