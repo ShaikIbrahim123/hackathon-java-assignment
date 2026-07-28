@@ -5,9 +5,17 @@ import com.fulfilment.application.monolith.warehouses.domain.ports.WarehouseStor
 import io.quarkus.hibernate.orm.panache.PanacheRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.util.List;
+import org.jboss.logging.Logger;
 
+
+/**
+ * Repository implementation responsible for Warehouse persistence operations,Uses Hibernate Panache for database interaction.
+ * Optimistic locking is handled through the managed entity (@Version field).
+ */
 @ApplicationScoped
 public class WarehouseRepository implements WarehouseStore, PanacheRepository<DbWarehouse> {
+
+  private static final Logger LOG = Logger.getLogger(WarehouseRepository.class);
 
   @Override
   public List<Warehouse> getAll() {
@@ -16,6 +24,8 @@ public class WarehouseRepository implements WarehouseStore, PanacheRepository<Db
 
   @Override
   public void create(Warehouse warehouse) {
+
+    LOG.infof("Creating warehouse with BusinessUnitCode=%s", warehouse.businessUnitCode);
     DbWarehouse dbWarehouse = new DbWarehouse();
     dbWarehouse.businessUnitCode = warehouse.businessUnitCode;
     dbWarehouse.location = warehouse.location;
@@ -25,14 +35,21 @@ public class WarehouseRepository implements WarehouseStore, PanacheRepository<Db
     dbWarehouse.archivedAt = warehouse.archivedAt;
     
     this.persist(dbWarehouse);
+    LOG.infof("Warehouse %s created successfully.", warehouse.businessUnitCode);
   }
 
   @Override
   public void update(Warehouse warehouse) {
-    DbWarehouse entity = find("businessUnitCode", warehouse.businessUnitCode)
-            .firstResult();
+    LOG.infof("Updating warehouse %s", warehouse.businessUnitCode);
+
+    /*
+      Load the managed entity first. This allows Hibernate's optimistic locking mechanism
+      to automatically compare entity versions and throw OptimisticLockException when concurrent updates occur.
+     */
+    DbWarehouse entity = find("businessUnitCode", warehouse.businessUnitCode).firstResult();
 
     if (entity == null) {
+      LOG.warnf("Warehouse %s not found for update.", warehouse.businessUnitCode);
       throw new IllegalArgumentException(
               "Warehouse not found: " + warehouse.businessUnitCode);
     }
@@ -42,6 +59,10 @@ public class WarehouseRepository implements WarehouseStore, PanacheRepository<Db
     entity.stock = warehouse.stock;
     entity.archivedAt = warehouse.archivedAt;
 
+    this.persist(entity);
+
+    LOG.infof("Warehouse %s updated successfully.", warehouse.businessUnitCode);
+
     // Clear persistence context to see updates in subsequent queries
     getEntityManager().flush();
     getEntityManager().clear();
@@ -50,8 +71,7 @@ public class WarehouseRepository implements WarehouseStore, PanacheRepository<Db
   @Override
   public void remove(Warehouse warehouse) {
 
-    DbWarehouse dbWarehouse =
-            find("businessUnitCode", warehouse.businessUnitCode).firstResult();
+    DbWarehouse dbWarehouse = find("businessUnitCode", warehouse.businessUnitCode).firstResult();
 
     if (dbWarehouse != null) {
       delete(dbWarehouse);
@@ -60,7 +80,20 @@ public class WarehouseRepository implements WarehouseStore, PanacheRepository<Db
 
   @Override
   public Warehouse findByBusinessUnitCode(String buCode) {
+    LOG.debugf("Searching warehouse %s", buCode);
+
     DbWarehouse dbWarehouse = find("businessUnitCode", buCode).firstResult();
-    return dbWarehouse != null ? dbWarehouse.toWarehouse() : null;
+
+    if (dbWarehouse == null) {
+
+      LOG.debugf("Warehouse %s not found", buCode);
+
+      return null;
+    }
+
+    LOG.debugf("Warehouse %s found", buCode);
+
+    return dbWarehouse.toWarehouse();
+
   }
 }

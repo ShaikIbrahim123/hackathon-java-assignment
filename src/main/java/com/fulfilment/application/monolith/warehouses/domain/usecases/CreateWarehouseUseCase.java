@@ -6,10 +6,12 @@ import com.fulfilment.application.monolith.warehouses.domain.ports.CreateWarehou
 import com.fulfilment.application.monolith.warehouses.domain.ports.LocationResolver;
 import com.fulfilment.application.monolith.warehouses.domain.ports.WarehouseStore;
 import jakarta.enterprise.context.ApplicationScoped;
+import org.jboss.logging.Logger;
 
 @ApplicationScoped
 public class CreateWarehouseUseCase implements CreateWarehouseOperation {
 
+  private static final Logger LOG = Logger.getLogger(CreateWarehouseUseCase.class);
   private final WarehouseStore warehouseStore;
   private final LocationResolver locationResolver;
 
@@ -20,9 +22,13 @@ public class CreateWarehouseUseCase implements CreateWarehouseOperation {
 
   @Override
   public void create(Warehouse warehouse) {
+
+    LOG.infof("Creating warehouse %s at location %s", warehouse.businessUnitCode, warehouse.location);
+
     // Validation 1: Business unit code must be unique
     Warehouse existing = warehouseStore.findByBusinessUnitCode(warehouse.businessUnitCode);
     if (existing != null) {
+      LOG.warnf("Warehouse already exists: %s", warehouse.businessUnitCode);
       throw new IllegalArgumentException(
           "Warehouse with business unit code '" + warehouse.businessUnitCode + "' already exists");
     }
@@ -30,6 +36,7 @@ public class CreateWarehouseUseCase implements CreateWarehouseOperation {
     // Validation 2: Location must be valid (must exist)
     Location location = locationResolver.resolveByIdentifier(warehouse.location);
     if (location == null) {
+      LOG.warnf("Invalid location %s for warehouse %s", warehouse.location, warehouse.businessUnitCode);
       throw new IllegalArgumentException(
           "Location '" + warehouse.location + "' is not valid");
     }
@@ -52,7 +59,11 @@ public class CreateWarehouseUseCase implements CreateWarehouseOperation {
     // Set creation timestamp
     warehouse.createdAt = java.time.LocalDateTime.now();
 
+    LOG.infof("Warehouse %s validated successfully. Persisting warehouse.", warehouse.businessUnitCode);
+
     // All validations passed, create the warehouse
     warehouseStore.create(warehouse);
+
+    LOG.infof("Warehouse %s created successfully", warehouse.businessUnitCode);
   }
 }
