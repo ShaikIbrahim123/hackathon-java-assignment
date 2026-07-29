@@ -2,10 +2,13 @@ package com.fulfilment.application.monolith.warehouses.adapters.database;
 
 import com.fulfilment.application.monolith.warehouses.domain.models.Warehouse;
 import com.fulfilment.application.monolith.warehouses.domain.ports.WarehouseStore;
+import com.fulfilment.application.monolith.warehouses.domain.models.WarehouseSearchCriteria;
+import com.fulfilment.application.monolith.warehouses.domain.models.WarehouseSearchResult;
 import io.quarkus.hibernate.orm.panache.PanacheRepository;
 import jakarta.enterprise.context.ApplicationScoped;
-import java.util.List;
 import org.jboss.logging.Logger;
+import java.util.List;
+
 
 
 /**
@@ -113,5 +116,162 @@ public class WarehouseRepository implements WarehouseStore, PanacheRepository<Db
 
     return dbWarehouse.toWarehouse();
 
+  }
+
+  @Override
+  public WarehouseSearchResult search(
+          WarehouseSearchCriteria criteria) {
+
+    LOG.info("Executing warehouse search query");
+
+
+    StringBuilder jpql =
+            new StringBuilder(
+                    "FROM DbWarehouse w WHERE w.archivedAt IS NULL");
+
+
+    if (criteria.location != null) {
+      jpql.append(" AND w.location = :location");
+    }
+
+
+    if (criteria.minCapacity != null) {
+      jpql.append(" AND w.capacity >= :minCapacity");
+    }
+
+
+    if (criteria.maxCapacity != null) {
+      jpql.append(" AND w.capacity <= :maxCapacity");
+    }
+
+
+    String sortField =
+            criteria.sortBy.equals("capacity")
+                    ? "capacity"
+                    : "createdAt";
+
+
+    String sortDirection =
+            criteria.sortOrder.equalsIgnoreCase("desc")
+                    ? "DESC"
+                    : "ASC";
+
+
+    jpql.append(
+            " ORDER BY w."
+                    + sortField
+                    + " "
+                    + sortDirection
+    );
+
+
+    var query = getEntityManager()
+            .createQuery(jpql.toString(), DbWarehouse.class);
+
+
+    if (criteria.location != null) {
+      query.setParameter(
+              "location",
+              criteria.location);
+    }
+
+
+    if (criteria.minCapacity != null) {
+      query.setParameter(
+              "minCapacity",
+              criteria.minCapacity);
+    }
+
+
+    if (criteria.maxCapacity != null) {
+      query.setParameter(
+              "maxCapacity",
+              criteria.maxCapacity);
+    }
+
+
+    List<DbWarehouse> entities =
+            query
+                    .setFirstResult(
+                            criteria.page * criteria.pageSize)
+                    .setMaxResults(
+                            criteria.pageSize)
+                    .getResultList();
+
+
+    List<Warehouse> warehouses =
+            entities.stream()
+                    .map(DbWarehouse::toWarehouse)
+                    .toList();
+
+
+    long total =
+            countWarehouses(criteria);
+
+
+    return new WarehouseSearchResult(
+            warehouses,
+            total,
+            criteria.page,
+            criteria.pageSize);
+  }
+
+
+  private long countWarehouses(
+          WarehouseSearchCriteria criteria) {
+
+
+    StringBuilder jpql =
+            new StringBuilder(
+                    "SELECT COUNT(w) FROM DbWarehouse w WHERE w.archivedAt IS NULL");
+
+
+    if(criteria.location != null) {
+      jpql.append(
+              " AND w.location = :location");
+    }
+
+
+    if(criteria.minCapacity != null) {
+      jpql.append(
+              " AND w.capacity >= :minCapacity");
+    }
+
+
+    if(criteria.maxCapacity != null) {
+      jpql.append(
+              " AND w.capacity <= :maxCapacity");
+    }
+
+
+    var query =
+            getEntityManager()
+                    .createQuery(
+                            jpql.toString(),
+                            Long.class);
+
+
+    if(criteria.location != null) {
+      query.setParameter(
+              "location",
+              criteria.location);
+    }
+
+
+    if(criteria.minCapacity != null) {
+      query.setParameter(
+              "minCapacity",
+              criteria.minCapacity);
+    }
+
+
+    if(criteria.maxCapacity != null) {
+      query.setParameter(
+              "maxCapacity",
+              criteria.maxCapacity);
+    }
+
+
+    return query.getSingleResult();
   }
 }

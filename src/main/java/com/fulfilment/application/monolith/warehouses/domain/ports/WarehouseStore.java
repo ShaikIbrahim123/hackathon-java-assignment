@@ -1,6 +1,8 @@
 package com.fulfilment.application.monolith.warehouses.domain.ports;
 
 import com.fulfilment.application.monolith.warehouses.domain.models.Warehouse;
+import com.fulfilment.application.monolith.warehouses.domain.models.WarehouseSearchCriteria;
+import com.fulfilment.application.monolith.warehouses.domain.models.WarehouseSearchResult;
 import java.util.List;
 
 public interface WarehouseStore {
@@ -14,4 +16,6 @@ public interface WarehouseStore {
   void remove(Warehouse warehouse);
 
   Warehouse findByBusinessUnitCode(String buCode);
+
+  WarehouseSearchResult search(WarehouseSearchCriteria criteria);
 }

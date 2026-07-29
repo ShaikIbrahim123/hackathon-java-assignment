@@ -1,9 +1,14 @@
 package com.fulfilment.application.monolith.warehouses.adapters.restapi;
 
 import com.fulfilment.application.monolith.warehouses.adapters.database.WarehouseRepository;
+import com.fulfilment.application.monolith.warehouses.domain.models.WarehouseSearchResult;
 import com.fulfilment.application.monolith.warehouses.domain.ports.ArchiveWarehouseOperation;
 import com.fulfilment.application.monolith.warehouses.domain.ports.CreateWarehouseOperation;
 import com.fulfilment.application.monolith.warehouses.domain.ports.ReplaceWarehouseOperation;
+import com.fulfilment.application.monolith.warehouses.domain.ports.SearchWarehouseOperation;
+import com.fulfilment.application.monolith.warehouses.domain.models.WarehouseSearchResult;
+import com.warehouse.api.beans.WarehouseSearchResponse;
+import java.math.BigInteger;
 import com.warehouse.api.WarehouseResource;
 import com.warehouse.api.beans.Warehouse;
 import jakarta.enterprise.context.RequestScoped;
@@ -20,6 +25,7 @@ public class WarehouseResourceImpl implements WarehouseResource {
   @Inject private CreateWarehouseOperation createWarehouseOperation;
   @Inject private ArchiveWarehouseOperation archiveWarehouseOperation;
   @Inject private ReplaceWarehouseOperation replaceWarehouseOperation;
+  @Inject private SearchWarehouseOperation searchWarehouseOperation;
 
   @Override
   public List<Warehouse> listAllWarehousesUnits() {
@@ -109,5 +115,96 @@ public class WarehouseResourceImpl implements WarehouseResource {
     response.setStock(warehouse.stock);
 
     return response;
+  }
+
+  @Override
+  public WarehouseSearchResponse searchWarehouses(
+          String location,
+          BigInteger minCapacity,
+          BigInteger maxCapacity,
+          String sortBy,
+          String sortOrder,
+          BigInteger page,
+          BigInteger pageSize) {
+
+
+    var criteria =
+            new com.fulfilment.application.monolith
+                    .warehouses.domain.models
+                    .WarehouseSearchCriteria();
+
+
+    criteria.location = location;
+
+
+    if(minCapacity != null) {
+      criteria.minCapacity = minCapacity.intValue();
+    }
+
+
+    if(maxCapacity != null) {
+      criteria.maxCapacity = maxCapacity.intValue();
+    }
+
+
+    if(sortBy != null) {
+      criteria.sortBy = sortBy;
+    }
+
+
+    if(sortOrder != null) {
+      criteria.sortOrder = sortOrder;
+    }
+
+
+    if(page != null) {
+      criteria.page = page.intValue();
+    }
+
+
+    if(pageSize != null) {
+      criteria.pageSize = pageSize.intValue();
+    }
+
+
+    try {
+
+      var result =
+              searchWarehouseOperation.search(criteria);
+
+
+      var response =
+              new WarehouseSearchResponse();
+
+
+      response.setTotal(
+              (int) result.total);
+
+
+      response.setPage(
+              result.page);
+
+
+      response.setPageSize(
+              result.pageSize);
+
+
+      response.setWarehouses(
+              result.warehouses
+                      .stream()
+                      .map(this::toWarehouseResponse)
+                      .toList()
+      );
+
+
+      return response;
+
+
+    } catch (IllegalArgumentException e) {
+
+      throw new WebApplicationException(
+              e.getMessage(),
+              400);
+    }
   }
 }
