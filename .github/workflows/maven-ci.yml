@@ -2,6 +2,7 @@ name: Maven Build and Test CI
 
 
 on:
+
   push:
     branches:
       - "**"
@@ -14,25 +15,24 @@ on:
 
 jobs:
 
-  build-test:
+  build:
 
+    name: Build and Run Tests
 
     runs-on: ubuntu-latest
 
 
     steps:
 
-
-      # Checkout your repository code
-      - name: Checkout source code
+      # Step 1 - Download repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
 
 
-      # Install Java 17 required by Quarkus project
+      # Step 2 - Install Java 17
       - name: Setup Java 17
         uses: actions/setup-java@v4
-
         with:
           java-version: '17'
           distribution: 'temurin'
@@ -40,6 +40,12 @@ jobs:
 
 
 
-      # Compile application and execute tests
-      - name: Build and run tests
+      # Step 3 - Give execute permission to Maven wrapper
+      - name: Make mvnw executable
+        run: chmod +x mvnw
+
+
+
+      # Step 4 - Build application and execute tests
+      - name: Build and Test
         run: ./mvnw clean verify
