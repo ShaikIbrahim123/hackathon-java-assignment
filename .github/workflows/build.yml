@@ -1,0 +1,50 @@
+name: Java Build
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+
+
+jobs:
+
+  test:
+
+
+    runs-on: ubuntu-latest
+
+
+    steps:
+
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+
+        with:
+
+          java-version: '17'
+
+          distribution: temurin
+
+
+
+      - name: Run tests with coverage
+        run: mvn clean verify -Dquarkus.profile=test
+
+
+
+      - name: Upload JaCoCo Report
+        uses: actions/upload-artifact@v4
+
+        with:
+
+          name: jacoco-report
+
+          path: target/site/jacoco/

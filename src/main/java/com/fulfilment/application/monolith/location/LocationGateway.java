@@ -31,4 +31,6 @@ public class LocationGateway implements LocationResolver {
         .findFirst()
         .orElse(null);
   }
+
+
 }

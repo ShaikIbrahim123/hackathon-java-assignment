@@ -162,6 +162,7 @@ public class WarehouseRepository implements WarehouseStore, PanacheRepository<Db
                     + sortField
                     + " "
                     + sortDirection
+                    + ", w.businessUnitCode ASC"
     );
 
 

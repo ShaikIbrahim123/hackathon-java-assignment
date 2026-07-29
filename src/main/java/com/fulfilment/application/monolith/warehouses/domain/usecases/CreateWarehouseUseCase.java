@@ -1,69 +1,80 @@
 package com.fulfilment.application.monolith.warehouses.domain.usecases;
 
-import com.fulfilment.application.monolith.warehouses.domain.models.Location;
+
+import com.fulfilment.application.monolith.location.LocationGateway;
+import com.fulfilment.application.monolith.warehouses.adapters.database.WarehouseRepository;
 import com.fulfilment.application.monolith.warehouses.domain.models.Warehouse;
 import com.fulfilment.application.monolith.warehouses.domain.ports.CreateWarehouseOperation;
-import com.fulfilment.application.monolith.warehouses.domain.ports.LocationResolver;
-import com.fulfilment.application.monolith.warehouses.domain.ports.WarehouseStore;
+
+
 import jakarta.enterprise.context.ApplicationScoped;
-import org.jboss.logging.Logger;
+import jakarta.transaction.Transactional;
+
+
 
 @ApplicationScoped
-public class CreateWarehouseUseCase implements CreateWarehouseOperation {
+public class CreateWarehouseUseCase
+        implements CreateWarehouseOperation {
 
-  private static final Logger LOG = Logger.getLogger(CreateWarehouseUseCase.class);
-  private final WarehouseStore warehouseStore;
-  private final LocationResolver locationResolver;
 
-  public CreateWarehouseUseCase(WarehouseStore warehouseStore, LocationResolver locationResolver) {
-    this.warehouseStore = warehouseStore;
-    this.locationResolver = locationResolver;
+  private final WarehouseRepository repository;
+
+  private final LocationGateway locationGateway;
+
+
+
+  public CreateWarehouseUseCase(
+          WarehouseRepository repository,
+          LocationGateway locationGateway) {
+
+    this.repository = repository;
+    this.locationGateway = locationGateway;
   }
+
+
 
   @Override
-  public void create(Warehouse warehouse) {
+  @Transactional
+  public Warehouse create(Warehouse warehouse) {
 
-    LOG.infof("Creating warehouse %s at location %s", warehouse.businessUnitCode, warehouse.location);
 
-    // Validation 1: Business unit code must be unique
-    Warehouse existing = warehouseStore.findByBusinessUnitCode(warehouse.businessUnitCode);
-    if (existing != null) {
-      LOG.warnf("Warehouse already exists: %s", warehouse.businessUnitCode);
-      throw new IllegalArgumentException(
-          "Warehouse with business unit code '" + warehouse.businessUnitCode + "' already exists");
-    }
+    validateWarehouse(warehouse);
 
-    // Validation 2: Location must be valid (must exist)
-    Location location = locationResolver.resolveByIdentifier(warehouse.location);
-    if (location == null) {
-      LOG.warnf("Invalid location %s for warehouse %s", warehouse.location, warehouse.businessUnitCode);
-      throw new IllegalArgumentException(
-          "Location '" + warehouse.location + "' is not valid");
-    }
 
-    // Validation 3: Capacity validation
-    // - Capacity cannot exceed location's max capacity
-    if (warehouse.capacity > location.maxCapacity()) {
-      throw new IllegalArgumentException(
-          "Warehouse capacity (" + warehouse.capacity + 
-          ") exceeds location max capacity (" + location.maxCapacity() + ")");
-    }
+    repository.create(warehouse);
 
-    // - Stock cannot exceed capacity
-    if (warehouse.stock > warehouse.capacity) {
-      throw new IllegalArgumentException(
-          "Warehouse stock (" + warehouse.stock + 
-          ") exceeds warehouse capacity (" + warehouse.capacity + ")");
-    }
 
-    // Set creation timestamp
-    warehouse.createdAt = java.time.LocalDateTime.now();
-
-    LOG.infof("Warehouse %s validated successfully. Persisting warehouse.", warehouse.businessUnitCode);
-
-    // All validations passed, create the warehouse
-    warehouseStore.create(warehouse);
-
-    LOG.infof("Warehouse %s created successfully", warehouse.businessUnitCode);
+    return warehouse;
   }
+
+
+
+
+  private void validateWarehouse(Warehouse warehouse) {
+
+
+    if(warehouse.businessUnitCode == null ||
+            warehouse.businessUnitCode.isBlank()) {
+
+      throw new IllegalArgumentException(
+              "Business unit code is mandatory");
+    }
+
+
+    if(warehouse.capacity <=0){
+
+      throw new IllegalArgumentException(
+              "Capacity must be positive");
+    }
+
+
+    if(warehouse.stock <0){
+
+      throw new IllegalArgumentException(
+              "Stock cannot be negative");
+    }
+
+
+  }
+
 }

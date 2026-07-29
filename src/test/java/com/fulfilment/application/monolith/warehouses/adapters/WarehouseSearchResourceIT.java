@@ -14,8 +14,8 @@ import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static io.restassured.RestAssured.*;
-        import static org.hamcrest.Matchers.*;
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.*;
 
 
 @QuarkusTest
@@ -42,7 +42,6 @@ public class WarehouseSearchResourceIT {
     @Transactional
     void setup() {
 
-
         em.createQuery(
                         "DELETE FROM DbWarehouse")
                 .executeUpdate();
@@ -68,14 +67,10 @@ public class WarehouseSearchResourceIT {
 
 
 
-
-
     @Test
     void shouldSearchWarehousesSuccessfully() {
 
-
         given()
-
                 .when()
                 .get("/warehouse/search")
 
@@ -87,11 +82,8 @@ public class WarehouseSearchResourceIT {
 
 
 
-
-
     @Test
     void shouldFilterWarehouseByLocation() {
-
 
         given()
                 .queryParam(
@@ -111,11 +103,8 @@ public class WarehouseSearchResourceIT {
 
 
 
-
-
     @Test
     void shouldFilterWarehouseByCapacity() {
-
 
         given()
                 .queryParam(
@@ -135,11 +124,8 @@ public class WarehouseSearchResourceIT {
 
 
 
-
-
     @Test
     void shouldSupportPagination() {
-
 
         given()
                 .queryParam(
@@ -159,104 +145,134 @@ public class WarehouseSearchResourceIT {
                         equalTo(1));
     }
 
+
+
     @Test
     @Transactional
-    public void shouldExcludeArchivedWarehouses() {
+    void shouldExcludeArchivedWarehouses() {
 
-        Warehouse active = createWarehouse(
-                "ACTIVE-WH",
-                "AMSTERDAM-001",
-                50
-        );
 
-        Warehouse archived = createWarehouse(
-                "ARCHIVED-WH",
-                "AMSTERDAM-001",
-                50
-        );
+        Warehouse archived =
+                createWarehouse(
+                        "ARCHIVED-WH",
+                        "AMSTERDAM-001",
+                        50);
 
-        archived.archivedAt = java.time.LocalDateTime.now();
+
+        archived.archivedAt =
+                java.time.LocalDateTime.now();
+
 
         warehouseRepository.update(archived);
 
 
+
         given()
+
                 .when()
                 .get("/warehouse/search")
+
                 .then()
                 .statusCode(200)
-                .body("warehouses.businessUnitCode",
+                .body(
+                        "warehouses.businessUnitCode",
                         not(hasItem("ARCHIVED-WH")));
     }
 
+
+
     @Test
-    public void shouldSortByCapacityDescending() {
+    void shouldSortByCapacityDescending() {
+
 
         createWarehouse(
                 "LOW-CAP",
                 "AMSTERDAM-001",
-                20
-        );
+                20);
+
 
         createWarehouse(
                 "HIGH-CAP",
                 "AMSTERDAM-001",
-                90
-        );
+                90);
+
 
         createWarehouse(
                 "MID-CAP",
                 "AMSTERDAM-001",
-                50
-        );
+                50);
+
 
 
         given()
-                .queryParam("sortBy", "capacity")
-                .queryParam("sortOrder", "desc")
+                .queryParam("sortBy","capacity")
+                .queryParam("sortOrder","desc")
+
                 .when()
                 .get("/warehouse/search")
+
                 .then()
                 .statusCode(200)
                 .body(
                         "warehouses[0].businessUnitCode",
-                        equalTo("HIGH-CAP")
-                );
+                        equalTo("HIGH-CAP"));
     }
 
-    @Test
-    public void shouldReturnPagedResults() {
 
-        createWarehouse("PAGE-1",
+
+    @Test
+    void shouldReturnPagedResults() {
+
+
+        createWarehouse(
+                "PAGE-1",
                 "AMSTERDAM-001",
                 10);
 
-        createWarehouse("PAGE-2",
+
+        createWarehouse(
+                "PAGE-2",
                 "AMSTERDAM-001",
                 20);
 
-        createWarehouse("PAGE-3",
+
+        createWarehouse(
+                "PAGE-3",
                 "AMSTERDAM-001",
                 30);
+
 
 
         given()
                 .queryParam("page",0)
                 .queryParam("pageSize",2)
+
                 .when()
                 .get("/warehouse/search")
+
                 .then()
                 .statusCode(200)
-                .body("page",
+                .body(
+                        "page",
                         equalTo(0))
-                .body("pageSize",
+                .body(
+                        "pageSize",
                         equalTo(2))
-                .body("warehouses.size()",
+                .body(
+                        "warehouses.size()",
                         equalTo(2));
     }
 
 
-    private Warehouse createWarehouse(
+
+    /*
+       IMPORTANT:
+       This method is package-private.
+       Do NOT make it private.
+       Quarkus needs to intercept @Transactional.
+    */
+    @Transactional
+    Warehouse createWarehouse(
             String code,
             String location,
             int capacity) {
@@ -282,8 +298,10 @@ public class WarehouseSearchResourceIT {
                 10;
 
 
+
         createWarehouseUseCase.create(
                 warehouse);
+
 
 
         return warehouse;
